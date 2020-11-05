@@ -1,0 +1,50 @@
+import boto3
+import json
+
+def lambda_handler(event, context):
+    """
+    1. get cars key from user tables 
+    
+    2. use car keys to get car information
+    
+    3. return cars
+    """
+    try:
+        dynamodb = boto3.resource('dynamodb')
+        
+        client = boto3.client('dynamodb')
+        userTable = dynamodb.Table('User')
+        requestBody = json.loads(event['body'])
+        email = requestBody['email']
+        userRecord = userTable.get_item(Key={'email': email})
+        userItem = userRecord['Item']
+        carId = userItem['cars']
+        
+        carTable = dynamodb.Table('Car')
+        carItem = carTable.get_item(Key={'carId': carId})['Item']
+        
+        carObj = {}
+        carObj['model'] = carItem['model']
+        carObj['modelYear'] = str(carItem['modelYear'])
+        carObj['make'] = carItem['make']
+        carObj['licensePlate'] =carItem['licensePlate']
+        
+        
+        responseObject = {}
+        responseObject['statusCode'] = 200
+        responseObject['headers'] = {}
+        responseObject['headers']['Content-Type'] = 'application/json'
+        responseObject['body'] = json.dumps(carObj)
+        
+        return responseObject
+        
+        
+        #get string set from item
+        
+        
+    except Exception as e:
+        responseObject = {}
+        responseObject['statusCode'] = 400
+        responseObject['headers'] = {}
+        responseObject['headers']['Content-Type'] = 'application/json'
+        responseObject['body'] = json.dumps('Error: ' + str(e))
