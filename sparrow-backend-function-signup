@@ -1,0 +1,52 @@
+import json
+import boto3
+from datetime import datetime
+
+def handler(event, context):
+    try:
+        dynamodb = boto3.resource('dynamodb')
+        client = boto3.client('dynamodb')
+    
+        userTable = dynamodb.Table('User')
+        
+        body = json.loads(event['body'])
+        email = body['email']
+        password = body['password']
+        firstName = body['firstName']
+        lastName = body['lastName']
+
+        if(exists('email', email) != None):
+            return {
+                'statusCode': 400,
+                'body': json.dumps("Email already exists")
+            }
+        
+        userTable.put_item(
+            Item={
+                'email': email,
+                'password': password,
+                'firstName': firstName,
+                'lastName': lastName,
+            }
+        )
+        return {
+            'statusCode': 200,
+            'body': json.dumps("Successfully created account")
+        }
+    except Exception as e:
+        return{
+            'statusCode': 400,
+            'body' : json.dumps(str(e))
+        }
+    
+def exists(key, value):
+    dynamodb = boto3.resource('dynamodb')
+    client = boto3.client('dynamodb')
+    
+    userTable = dynamodb.Table('User')
+    try:
+        match = userTable.get_item(Key={key: value})
+        item = match['Item']
+    except Exception as e:
+        item = None
+    return item
