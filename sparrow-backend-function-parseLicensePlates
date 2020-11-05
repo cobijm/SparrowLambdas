@@ -1,0 +1,46 @@
+import json
+import boto3
+from datetime import datetime
+
+def handler(event, context):
+    try:
+        dynamodb = boto3.resource('dynamodb')
+        client = boto3.client('dynamodb')
+    
+        licensePlatesTable = dynamodb.Table('LicensePlates')
+        body = json.loads(event['body'])
+        results = body["results"]
+        
+        counter = 0
+        platesAsSet = set()
+        for i in results:
+            platesAsSet.add(results[counter]["plate"])
+            counter = counter + 1
+        platesAsList = setToList(plates)
+        
+        return {
+            'statusCode': 200,
+            'body': json.dumps(platesAsList)
+        }
+    except Exception as e:
+        return{
+            'statusCode': 400,
+            'body' : json.dumps(str(e))
+        }
+    
+def setToList(obj):
+    if isinstance(obj, set):
+        return list(obj)
+    raise TypeError
+    
+def exists(key, value):
+    dynamodb = boto3.resource('dynamodb')
+    client = boto3.client('dynamodb')
+    
+    licensePlatesTable = dynamodb.Table('LicensePlates')
+    try:
+        match = licensePlatesTable.get_item(Key={key: value})
+        item = match['Item']
+    except Exception as e:
+        item = None
+    return item
