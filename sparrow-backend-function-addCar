@@ -1,0 +1,56 @@
+import json
+import boto3
+import uuid
+from datetime import datetime
+
+def handler(event, context):
+    try:
+        dynamodb = boto3.resource('dynamodb')
+        client = boto3.client('dynamodb')
+    
+        userTable = dynamodb.Table('User')
+        carTable = dynamodb.Table('Car')
+        
+        body = json.loads(event['body'])
+        email = body['email']
+        make = body['make']
+        model = body['model']
+        modelYear = body['modelYear']
+        licensePlate = body['licensePlate']
+
+        carId = uuid.uuid4()
+        
+        userTable.update_item(
+            Key={
+                'email': email
+            },
+            UpdateExpression="SET cars=:carId",
+            ExpressionAttributeValues={
+                ':carId': str(carId)
+            }
+            #UpdateExpression="SET cars = list_append(if_not_exists(cars, :empty_list), :carId)",
+            #ExpressionAttributeValues={
+            #    ':carId': [str(carId)], 
+            #    ":empty_list": []
+            #}
+        )
+
+        carTable.put_item(
+            Item={
+                'carId': str(carId),
+                'make': make,
+                'model': model,
+                'modelYear': modelYear,
+                'licensePlate' : licensePlate,
+            }
+        )
+        
+        return {
+            'statusCode': 200,
+            'body': json.dumps("Successfully added car")
+        }
+    except Exception as e:
+        return{
+            'statusCode': 400,
+            'body' : json.dumps("Error adding car")
+        }
