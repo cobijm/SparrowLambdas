@@ -1,0 +1,76 @@
+import boto3
+import json
+from datetime import datetime
+from boto3.dynamodb.conditions import Key
+import time 
+
+
+print('Loading function')
+dynamo = boto3.client('dynamodb')
+s3 = boto3.client('s3')
+
+
+def respond(err, res=None):
+    return {
+        'statusCode': '400' if err else '200',
+        'body': err.message if err else json.dumps(res),
+        'headers': {
+            'Content-Type': 'application/json',
+        },
+    }
+
+
+def lambda_handler(event, context):
+
+    try:
+        time = int(datetime.now().timestamp())
+        dynamodb = boto3.resource('dynamodb')
+        requestBody = json.loads(event['body'])
+        
+        email = requestBody['email']
+        param = event['queryStringParameters']
+        listExist = param != None and 'limit' in param
+        
+        limit = 2 if not listExist else int(param['limit'])
+        
+        videoTable = dynamodb.Table('video')
+        #Query latest record
+        query = videoTable.query(
+            KeyConditionExpression=Key('email').eq(email),
+            ScanIndexForward = False,
+            Limit = limit
+            
+        )
+        
+        
+        
+        resArr = fileToUrlDicts(query['Items'])
+        resDic = {}
+        resDic['myVideos'] = resArr
+        return respond(err = None, res = resDic)
+
+    except Exception as e:
+        responseObject = {}
+        responseObject['statusCode'] = 400
+        responseObject['headers'] = {}
+        responseObject['headers']['Content-Type'] = 'application/json'
+        responseObject['body'] = json.dumps('Error: ' + str(e))
+        return responseObject
+
+def fileToUrlDicts(items):
+    bucket = 'sparrow-video-storage'
+    res = []
+    for x in items:
+        dic = {}
+        filePath = x['filePath']
+        responseUrl = s3.generate_presigned_url('get_object', Params= {
+            "Bucket" : bucket,
+            'Key' : filePath
+        }, ExpiresIn=3600)
+        dic['url'] = responseUrl
+        epochTime = int(x['timestamp'])
+        
+        dic['epochTime'] = time.strftime("%a, %d %b %Y %H:%M:%S %Z", time.localtime(epochTime))
+        res.append(dic)
+    return res
+        
